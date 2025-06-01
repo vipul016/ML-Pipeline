@@ -144,6 +144,7 @@ def run_model(csv_file,
             input_column,
             drop_column,
             corr_threshold,
+            missing_threshold,
             imputation,
             scaling_method,
             test_size,
@@ -171,11 +172,11 @@ def run_model(csv_file,
 
     # Log high missing value columns
     drop_nan = df.isnull().sum()
-    drop_nan = drop_nan[drop_nan.values > len(df)*.30]
+    drop_nan = drop_nan[drop_nan.values > len(df)*missing_threshold]
     if not drop_nan.empty:
         df.drop(labels=drop_nan.index, inplace=True, axis=1)
         log_step(log_file, "High Missing Value Columns Dropped", 
-                f"Columns dropped due to >30% missing values:\n\n{drop_nan.to_string()}")
+                f"Columns dropped due to >{missing_threshold*100}% missing values:\n\n{drop_nan.to_string()}")
 
     # Log correlation-based feature removal
     if corr_threshold > 0:
@@ -549,6 +550,10 @@ with gr.Blocks() as demo:
             0,1,value=0.95,step=0.01,
             label="Correlation Threshold (Remove Features Above)"
         )
+        missing_threshold=gr.Slider(
+            0,1,value=0.30,step=0.05,
+            label="Missing Value Threshold (Remove Features Above)"
+        )
         imputation=gr.Dropdown(
             ["Mean","Median"],
             label="Imputation",
@@ -650,13 +655,13 @@ with gr.Blocks() as demo:
     )
 
     def run_and_analyze(csv_file, problem_type, model_name, input_column, drop_column, 
-                       corr_threshold, imputation, scaling_method, test_size,
+                       corr_threshold, missing_threshold, imputation, scaling_method, test_size,
                        sampling_method, skew_method_right, skew_method_left,
                        outlier_method, outlier_action):
         # Run the model
         report, results_file, log_file = run_model(
             csv_file, problem_type, model_name, input_column, drop_column,
-            corr_threshold, imputation, scaling_method, test_size,
+            corr_threshold, missing_threshold, imputation, scaling_method, test_size,
             sampling_method, skew_method_right, skew_method_left,
             outlier_method, outlier_action
         )
@@ -683,6 +688,7 @@ with gr.Blocks() as demo:
             target_column,
             drop_column,
             corr_threshold,
+            missing_threshold,
             imputation,
             scaling_method,
             test_size,
