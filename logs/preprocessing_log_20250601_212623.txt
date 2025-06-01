@@ -1,0 +1,96 @@
+
+==================================================
+Step: Initial Data Loading
+==================================================
+Loading data from /private/var/folders/pz/dgpyw9mn77s0lrz1yw_wdr440000gn/T/gradio/bf3d2696b2367916f06fcc086bcdc8ab06d70e207458f56281d912680ed2c88f/Salaries.csv
+
+==================================================
+Step: Initial Data Info
+==================================================
+Initial columns: ['Id', 'EmployeeName', 'JobTitle', 'BasePay', 'OvertimePay', 'OtherPay', 'Benefits', 'TotalPay', 'TotalPayBenefits', 'Year', 'Notes', 'Agency', 'Status']
+Shape: (148654, 13)
+
+==================================================
+Step: High Missing Value Columns Dropped
+==================================================
+Columns dropped due to >30% missing values:
+
+Notes     148654
+Status    148654
+
+==================================================
+Step: Correlation-based Feature Removal
+==================================================
+Threshold: 0.95
+Dropped columns: ['Year']
+
+==================================================
+Step: Imputation
+==================================================
+Imputed columns:
+Id: Median = 74327.5
+EmployeeName: Mode = Kevin Lee
+JobTitle: Mode = Transit Operator
+BasePay: Median = 65007.45
+OvertimePay: Median = 0.0
+OtherPay: Median = 811.27
+Benefits: Median = 28628.62
+TotalPay: Median = 71426.60999999999
+TotalPayBenefits: Median = 92404.09
+Agency: Mode = San Francisco
+
+==================================================
+Step: Outlier Handling
+==================================================
+Method: IQR
+Action: Remove Rows
+Column Id: 0 rows removed
+Column BasePay: 1080 rows removed
+Column OvertimePay: 19965 rows removed
+Column OtherPay: 14566 rows removed
+Column Benefits: 623 rows removed
+Column TotalPayBenefits: 20 rows removed
+
+==================================================
+Step: Skewness Handling
+==================================================
+Column OvertimePay: Right skew (2.38) -> Square Root
+Column OtherPay: Right skew (1.71) -> Square Root
+Column Benefits: Left skew (-0.56) -> Square
+
+==================================================
+Step: Feature Scaling
+==================================================
+Method: Standard Scaler
+Scaled columns: ['Id', 'BasePay', 'OvertimePay', 'OtherPay', 'Benefits', 'TotalPayBenefits']
+
+==================================================
+Step: Categorical Column Dropped
+==================================================
+Columns dropped due to high cardinality:
+EmployeeName: 87621 unique values
+JobTitle: 1991 unique values
+
+==================================================
+Step: Categorical Encoding
+==================================================
+Encoded columns: ['Agency']
+New features created: []
+
+==================================================
+Step: Train-Test Split
+==================================================
+Test size: 20%
+Training set shape: (89920, 6)
+Test set shape: (22480, 6)
+
+==================================================
+Step: Model Results
+==================================================
+
+            Model: Linear Regression
+            R² Score: 0.9910
+            Mean Absolute Error: 2009.9296
+            Mean Squared Error: 14712476.4126
+            Root Mean Squared Error: 3835.6846
+            

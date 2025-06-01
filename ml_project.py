@@ -15,6 +15,8 @@ from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 import xgboost as xgb
 from catboost import CatBoostRegressor, CatBoostClassifier
+from datetime import datetime
+import os
 
 from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 from sklearn.preprocessing import LabelEncoder
@@ -121,6 +123,19 @@ def format_results_table(results, problem_type):
     
     return table
 
+def create_log_file():
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_dir = "logs"
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    return os.path.join(log_dir, f"preprocessing_log_{timestamp}.txt")
+
+def log_step(log_file, step_name, details):
+    with open(log_file, 'a') as f:
+        f.write(f"\n{'='*50}\n")
+        f.write(f"Step: {step_name}\n")
+        f.write(f"{'='*50}\n")
+        f.write(f"{details}\n")
 
 def run_model(csv_file,
             problem_type,
@@ -138,47 +153,64 @@ def run_model(csv_file,
             outlier_action,
 ):
     if csv_file is None:
-        return "Please upload a CSV File",None
+        return "Please upload a CSV File", None, None
     
-    df=pd.read_csv(csv_file.name)
-    df=df.sample(frac=0.05)
-    print(df.columns)
+    log_file = create_log_file()
+    log_step(log_file, "Initial Data Loading", f"Loading data from {csv_file.name}")
 
-
-    df.drop(columns=drop_column,errors="ignore",inplace=True)
-
-    drop_nan=df.isnull().sum()
-    drop_nan=drop_nan[drop_nan.values>len(df)*.30]
     
-    df.drop(labels=drop_nan.index,inplace=True,axis=1)
+    df = pd.read_csv(csv_file.name)
+    initial_columns = list(df.columns)
+    log_step(log_file, "Initial Data Info", f"Initial columns: {initial_columns}\nShape: {df.shape}")
 
-    if corr_threshold>0:
+    # Log dropped columns
+    if drop_column:
+        df.drop(columns=drop_column, errors="ignore", inplace=True)
+        log_step(log_file, "Manual Column Dropping", f"Dropped columns: {drop_column}")
+
+    # Log high missing value columns
+    drop_nan = df.isnull().sum()
+    drop_nan = drop_nan[drop_nan.values > len(df)*.30]
+    if not drop_nan.empty:
+        df.drop(labels=drop_nan.index, inplace=True, axis=1)
+        log_step(log_file, "High Missing Value Columns Dropped", 
+                f"Columns dropped due to >30% missing values:\n\n{drop_nan.to_string()}")
+
+    # Log correlation-based feature removal
+    if corr_threshold > 0:
         df_numeric = df.select_dtypes(include=['number']).drop(columns=[input_column], errors='ignore')
         if not df_numeric.empty:
             corr_matrix = df_numeric.corr().abs()
-            
             upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
-            
             to_drop = [column for column in upper.columns if any(upper[column] > corr_threshold)]
-            
-            df.drop(to_drop, axis=1, inplace=True)
+            if to_drop:
+                df.drop(to_drop, axis=1, inplace=True)
+                log_step(log_file, "Correlation-based Feature Removal", 
+                        f"Threshold: {corr_threshold}\nDropped columns: {to_drop}")
 
-    
-        
+    # Log imputation
     if imputation != "None":
+        imputed_cols = []
         for col in df.columns:
-            if df[col].dtype in [float,int]:
-                if imputation=="Mean":
-                    df[col].fillna(df[col].mean(),inplace=True)
-                elif imputation=="Median":
-                    df[col].fillna(df[col].median(),inplace=True)
+            if df[col].dtype in [float, int]:
+                if imputation == "Mean":
+                    df.loc[:, col] = df[col].fillna(df[col].mean())
+                    imputed_cols.append((col, "Mean", df[col].mean()))
+                elif imputation == "Median":
+                    df.loc[:, col] = df[col].fillna(df[col].median())
+                    imputed_cols.append((col, "Median", df[col].median()))
             else:
-                df[col].fillna(df[col].mode()[0],inplace=True)
-    
-    if outlier_method !="None" and outlier_action != "None":
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
-        outlier_columns=[]
+                mode_val = df[col].mode()[0]
+                df.loc[:, col] = df[col].fillna(mode_val)
+                imputed_cols.append((col, "Mode", mode_val))
+        if imputed_cols:
+            log_step(log_file, "Imputation", 
+                    "Imputed columns:\n" + "\n".join([f"{col}: {method} = {value}" for col, method, value in imputed_cols]))
 
+    # Log outlier handling
+    if outlier_method != "None" and outlier_action != "None":
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        outlier_info = []
         for col in numeric_cols:
             if col == input_column:
                 continue
@@ -188,240 +220,277 @@ def run_model(csv_file,
                 IQR = Q3 - Q1
                 lower = Q1 - 1.5 * IQR
                 upper = Q3 + 1.5 * IQR
-
-                mask = (df[col]<lower ) | (df[col]>upper)
-            
+                mask = (df[col] < lower) | (df[col] > upper)
             elif outlier_method == "Z-Score":
-                z_scores=np.abs(stats.zscore(df[col].dropna()))
+                z_scores = np.abs(stats.zscore(df[col].dropna()))
                 mask = z_scores > 3
-                mask = pd.Series(mask , index=df[col].dropna().index).reindex_like(df[col])
-                mask=mask.fillna(False)
+                mask = pd.Series(mask, index=df[col].dropna().index).reindex_like(df[col])
+                mask = mask.fillna(False)
             elif outlier_method == "Percentile":
                 lower = df[col].quantile(0.01)
                 upper = df[col].quantile(0.99)
-                mask = (df[col]<lower) | (df[col]>upper)
+                mask = (df[col] < lower) | (df[col] > upper)
             else:
                 continue
             
             outlier_ratio = mask.sum()/len(df)
-
             if outlier_ratio > .30:
-                df.drop(columns=col,inplace=True)
+                df.drop(columns=col, inplace=True)
+                outlier_info.append(f"Column {col} dropped due to {outlier_ratio:.2%} outliers")
             else:
                 if outlier_action == "Remove Rows":
                     df = df[~mask]
-                
-   
-    
-    if skew_method_right != "None" and skew_method_left != "None":
+                    outlier_info.append(f"Column {col}: {mask.sum()} rows removed")
+        
+        if outlier_info:
+            log_step(log_file, "Outlier Handling", 
+                    f"Method: {outlier_method}\nAction: {outlier_action}\n" + "\n".join(outlier_info))
+
+    # Log skewness handling
+    if skew_method_right != "None" or skew_method_left != "None":
+        skew_info = []
         for col in df.select_dtypes(include=[np.number]).columns:
-            if col==input_column:
+            if col == input_column:
                 continue
             skew = df[col].skew()
-            
-            if skew > 0.5:
+            if skew > 0.5 and skew_method_right != "None":
                 if skew_method_right == "Square Root":
                     df[col] = np.sqrt(np.clip(df[col], a_min=0, a_max=None))
                 elif skew_method_right == "Cube Root":
                     df[col] = np.cbrt(df[col])
                 elif skew_method_right == "Logarithms":
-                    # df[col] = np.log(df[col].clip(lower=1e-9))
                     pass
                 elif skew_method_right == "Reciprocal":
                     df[col] = 1 / df[col].replace(0, 1e-9)
-            elif skew < -0.5:
+                skew_info.append(f"Column {col}: Right skew ({skew:.2f}) -> {skew_method_right}")
+            elif skew < -0.5 and skew_method_left != "None":
                 if skew_method_left == "Square":
                     df[col] = df[col] ** 2
                 elif skew_method_left == "Cube":
                     df[col] = df[col] ** 3
-                  
+                skew_info.append(f"Column {col}: Left skew ({skew:.2f}) -> {skew_method_left}")
+        
+        if skew_info:
+            log_step(log_file, "Skewness Handling", "\n".join(skew_info))
 
+    # Log encoding
     if input_column in df.columns and pd.api.types.is_object_dtype(df[input_column]):
         le = LabelEncoder()
         df[input_column] = le.fit_transform(df[input_column])
+        log_step(log_file, "Target Encoding", f"Encoded target column: {input_column}")
 
     y = df[input_column]
-    X = df.drop(input_column,axis=1)
-    if scaling_method !="None":
-        if scaling_method=="Standard Scaler":
-            scaler=StandardScaler()
+    X = df.drop(input_column, axis=1)
+
+    # Log scaling
+    if scaling_method != "None":
+        if scaling_method == "Standard Scaler":
+            scaler = StandardScaler()
         else:
-            scaler=MinMaxScaler()
+            scaler = MinMaxScaler()
         
-        numeric_cols=X.select_dtypes(include=['int64','float64']).columns
-        scaled_vals=scaler.fit_transform(X[numeric_cols])
+        numeric_cols = X.select_dtypes(include=['int64', 'float64']).columns
+        scaled_vals = scaler.fit_transform(X[numeric_cols])
         X[numeric_cols] = pd.DataFrame(scaled_vals, columns=numeric_cols, index=X.index)
-    
+        log_step(log_file, "Feature Scaling", f"Method: {scaling_method}\nScaled columns: {list(numeric_cols)}")
+
+    # Log categorical encoding
     category_column = X.select_dtypes(include='object').columns.tolist()
     columns_to_encode = []
-
-
+    dropped_columns_info = []
+    
     for col in category_column:
-        if X[col].nunique() <= 10:
+        if col not in X.columns:  # Skip if column was already dropped
+            continue
+        unique_count = X[col].nunique()
+        if unique_count <= 10:
             columns_to_encode.append(col)
         else:
+            dropped_columns_info.append((col, unique_count))
             X.drop(col, axis=1, inplace=True)
+    
+    if dropped_columns_info:
+        log_step(log_file, "Categorical Column Dropped", 
+                f"Columns dropped due to high cardinality:\n" + 
+                "\n".join([f"{col}: {count} unique values" for col, count in dropped_columns_info]))
 
     if columns_to_encode:
         encoder = OneHotEncoder(sparse_output=False, drop='first')
         encoded_data = encoder.fit_transform(X[columns_to_encode])
-        
         encoded_df = pd.DataFrame(
             encoded_data,
             columns=encoder.get_feature_names_out(columns_to_encode),
             index=X.index
         )
-
         X.drop(columns_to_encode, axis=1, inplace=True)
         X = pd.concat([X, encoded_df], axis=1)
-
-        
-
+        log_step(log_file, "Categorical Encoding", 
+                f"Encoded columns: {columns_to_encode}\nNew features created: {list(encoded_df.columns)}")
 
     X_train, X_test, y_train, y_test = train_test_split(
-            X,y, test_size=test_size/100, random_state=42)
+        X, y, test_size=test_size/100, random_state=42)
+    log_step(log_file, "Train-Test Split", f"Test size: {test_size}%\nTraining set shape: {X_train.shape}\nTest set shape: {X_test.shape}")
+
+    # Log sampling
+    if sampling_method != "None":
+        if sampling_method == "Up Sampling":
+            sampler = RandomOverSampler(random_state=42)
+        elif sampling_method == "Down Sampling":
+            sampler = RandomUnderSampler(random_state=42)
+        elif sampling_method == "SMOTE":
+            sampler = SMOTETomek(random_state=42)
         
-    if sampling_method !="None":
-            if sampling_method == "Up Sampling":
-                sampler = RandomOverSampler(random_state=42)
-                X_train,y_train=sampler.fit_resample(X_train,y_train)
-            elif sampling_method == "Down Sampling":
-                sampler = RandomUnderSampler(random_state=42)
-                X_train,y_train=sampler.fit_resample(X_train,y_train)
-            elif sampling_method == "SMOTE":
-                sampler = SMOTETomek(random_state=42)
-                X_train,y_train=sampler.fit_resample(X_train,y_train)
+        X_train, y_train = sampler.fit_resample(X_train, y_train)
+        log_step(log_file, "Sampling", f"Method: {sampling_method}\nNew training set shape: {X_train.shape}")
+
+    # Log model training and results
     if model_name == "Apply All":
         results = run_all_models(X_train, X_test, y_train, y_test, problem_type)
         table = format_results_table(results, problem_type)
+        log_step(log_file, "Model Comparison Results", table)
         
         report = f"""
             Model Comparison Results ({problem_type})
             Target: {input_column}
             
             {table}
+            """
+        return report, "results.csv", log_file
+
+    if problem_type == "Regression":
+        if model_name == "Linear Regression":
+            model = LinearRegression()
+        elif model_name == "Random Forest":
+            model = RandomForestRegressor()
+        elif model_name == "Decision Tree":
+            model = DecisionTreeRegressor()
+        elif model_name == "SVR":
+            model = SVR()
+        elif model_name == "KNN":
+            model = KNeighborsRegressor()
+        elif model_name == "XGBoost":
+            model = xgb.XGBRegressor()
+        elif model_name == "CatBoost":
+            model = CatBoostRegressor(verbose=False)
+        
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+
+        results_df = pd.DataFrame({
+            "Actual": y_test.values.ravel(),
+            "Predicted": y_pred.ravel()
+        })
+
+        results_df.to_csv("results.csv",index=False)
+        
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        r2 = r2_score(y_test, y_pred)
+        mae = np.mean(np.abs(y_test - y_pred))
+        
+        if hasattr(model, 'coef_'):
+            if len(model.coef_.shape) == 1:
+                coefficients = dict(zip(X.columns, model.coef_))
+            else:
+                coefficients = "Multiple coefficients "
+        else:
+            coefficients = "Feature importances not available for this model"
+        
+        log_step(log_file, "Model Results", f"""
+            Model: {model_name}
+            R² Score: {r2:.4f}
+            Mean Absolute Error: {mae:.4f}
+            Mean Squared Error: {mse:.4f}
+            Root Mean Squared Error: {rmse:.4f}
+            """)
+        
+        report = f"""
+            Model: {model_name} ({problem_type})
+            Target: {input_column}
+            
+            
+            Model Metrics:
+            - R² Score: {r2:.4f}
+            - Mean Absolute Error: {mae:.4f}
+            - Mean Squared Error: {mse:.4f}
+            - Root Mean Squared Error: {rmse:.4f}
             
             """
-        return report, "results.csv"
-    elif problem_type == "Regression":
-            if model_name == "Linear Regression":
-                model = LinearRegression()
-            elif model_name == "Random Forest":
-                model = RandomForestRegressor()
-            elif model_name == "Decision Tree":
-                model = DecisionTreeRegressor()
-            elif model_name == "SVR":
-                model = SVR()
-            elif model_name == "KNN":
-                model = KNeighborsRegressor()
-            elif model_name == "XGBoost":
-                model = xgb.XGBRegressor()
-            elif model_name == "CatBoost":
-                model = CatBoostRegressor(verbose=False)
-            
-                
-            model.fit(X_train, y_train)
-            y_pred = model.predict(X_test)
+        return report,"results.csv", log_file
 
-            results_df = pd.DataFrame({
-                "Actual": y_test.values.ravel(),
-                "Predicted": y_pred.ravel()
-            })
-
-            results_df.to_csv("results.csv",index=False)
-                
-            mse = mean_squared_error(y_test, y_pred)
-            rmse = np.sqrt(mse)
-            r2 = r2_score(y_test, y_pred)
-            mae = np.mean(np.abs(y_test - y_pred))
-                
-            if hasattr(model, 'coef_'):
-                if len(model.coef_.shape) == 1:
-                    coefficients = dict(zip(X.columns, model.coef_))
-                else:
-                    coefficients = "Multiple coefficients "
-            else:
-                coefficients = "Feature importances not available for this model"
-                
-            report = f"""
-                Model: {model_name} ({problem_type})
-                Target: {target_column}
-                
-                
-                Model Metrics:
-                - R² Score: {r2:.4f}
-                - Mean Absolute Error: {mae:.4f}
-                - Mean Squared Error: {mse:.4f}
-                - Root Mean Squared Error: {rmse:.4f}
-                
-                """
-            return report,"results.csv"
-                
     else:  # Classification
-            if model_name == "Logistic Regression":
-                model = LogisticRegression()
-            elif model_name == "Random Forest":
-                model = RandomForestClassifier()
-            elif model_name == "Decision Tree":
-                model = DecisionTreeClassifier()
-            elif model_name == "SVC":
-                model = SVC()
-            elif model_name == "KNN":
-                model = KNeighborsClassifier()
-            elif model_name == "Naive Bayes":
-                model = GaussianNB()
-            elif model_name == "XGBoost":
-                model = xgb.XGBClassifier()
-            elif model_name == "CatBoost":
-                model = CatBoostClassifier(verbose=False)
-            
-            
-                
-            model.fit(X_train, y_train)
-            y_pred = model.predict(X_test)
+        if model_name == "Logistic Regression":
+            model = LogisticRegression()
+        elif model_name == "Random Forest":
+            model = RandomForestClassifier()
+        elif model_name == "Decision Tree":
+            model = DecisionTreeClassifier()
+        elif model_name == "SVC":
+            model = SVC()
+        elif model_name == "KNN":
+            model = KNeighborsClassifier()
+        elif model_name == "Naive Bayes":
+            model = GaussianNB()
+        elif model_name == "XGBoost":
+            model = xgb.XGBClassifier()
+        elif model_name == "CatBoost":
+            model = CatBoostClassifier(verbose=False)
+        
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
 
-            results_df = pd.DataFrame({
-                "Actual": y_test.values.ravel(),
-                "Predicted": y_pred.ravel()
-            })
+        results_df = pd.DataFrame({
+            "Actual": y_test.values.ravel(),
+            "Predicted": y_pred.ravel()
+        })
 
-            results_df.to_csv("results.csv",index=False)
-                
-            accuracy = accuracy_score(y_test, y_pred)
-            precision = precision_score(y_test, y_pred, average='weighted')
-            recall = recall_score(y_test, y_pred, average='weighted')
-            f1 = f1_score(y_test, y_pred, average='weighted')
-            class_report = classification_report(y_test, y_pred)
-                
-            if hasattr(model, 'feature_importances_'):
-                importances = dict(zip(X.columns, model.feature_importances_))
-            elif hasattr(model, 'coef_'):
-                if len(model.coef_.shape) == 1:
-                    importances = dict(zip(X.columns, model.coef_[0]))
-                else:
-                    importances = "Multiple coefficients (check model details)"
+        results_df.to_csv("results.csv",index=False)
+        
+        accuracy = accuracy_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred, average='weighted')
+        recall = recall_score(y_test, y_pred, average='weighted')
+        f1 = f1_score(y_test, y_pred, average='weighted')
+        class_report = classification_report(y_test, y_pred)
+        
+        if hasattr(model, 'feature_importances_'):
+            importances = dict(zip(X.columns, model.feature_importances_))
+        elif hasattr(model, 'coef_'):
+            if len(model.coef_.shape) == 1:
+                importances = dict(zip(X.columns, model.coef_[0]))
             else:
-                importances = "Feature importances not available for this model"
-                
-            report = f"""
-                Model: {model_name} ({problem_type})
-                Target: {target_column}
-                
-                
-                Model Metrics:
-                - Accuracy: {accuracy:.4f}
-                - Precision: {precision:.4f}
-                - Recall: {recall:.4f}
-                - F1 Score: {f1:.4f}
-                
-                Classification Report:
-                {class_report}
-                
-                """
-            return report,"results.csv"
+                importances = "Multiple coefficients (check model details)"
+        else:
+            importances = "Feature importances not available for this model"
+        
+        log_step(log_file, "Model Results", f"""
+            Model: {model_name}
+            Accuracy: {accuracy:.4f}
+            Precision: {precision:.4f}
+            Recall: {recall:.4f}
+            F1 Score: {f1:.4f}
+            
+            Classification Report:
+            {class_report}
+            """)
+        
+        report = f"""
+            Model: {model_name} ({problem_type})
+            Target: {input_column}
+            
+            
+            Model Metrics:
+            - Accuracy: {accuracy:.4f}
+            - Precision: {precision:.4f}
+            - Recall: {recall:.4f}
+            - F1 Score: {f1:.4f}
+            
+            Classification Report:
+            {class_report}
+            
+            """
+        return report,"results.csv", log_file
 
 
-    
 with gr.Blocks() as demo:
     with gr.Row():
         file_upload=gr.File(label="Upload CSV File",file_types=['.csv'])
@@ -509,6 +578,7 @@ with gr.Blocks() as demo:
     output_features=gr.TextArea(label="Processed Data",lines=15)
 
     download_csv = gr.File(label= "Download Prediction CSV")
+    download_log = gr.File(label="Download Processing Log")
 
     def update_model_options(problem_type):
         if problem_type=="Regression":
@@ -561,7 +631,7 @@ with gr.Blocks() as demo:
             outlier_method,
             outlier_action,
         ],
-        outputs=[output_features,download_csv]
+        outputs=[output_features, download_csv, download_log]
     )
 
 if __name__ == "__main__":
