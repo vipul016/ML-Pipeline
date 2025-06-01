@@ -1,0 +1,293 @@
+
+==================================================
+Step: Initial Data Loading
+==================================================
+Loading data from /private/var/folders/pz/dgpyw9mn77s0lrz1yw_wdr440000gn/T/gradio/ad0054db150355e464c3cd201029284ea763129cdb7b15e26f6d51200187a749/neww.csv
+
+==================================================
+Step: Initial Data Info
+==================================================
+Initial columns: ['id', 'member_id', 'loan_amnt', 'funded_amnt', 'funded_amnt_inv', 'term', 'int_rate', 'installment', 'grade', 'sub_grade', 'emp_title', 'emp_length', 'home_ownership', 'annual_inc', 'verification_status', 'issue_d', 'loan_status', 'pymnt_plan', 'url', 'desc', 'purpose', 'title', 'zip_code', 'addr_state', 'dti', 'delinq_2yrs', 'earliest_cr_line', 'fico_range_low', 'fico_range_high', 'inq_last_6mths', 'mths_since_last_delinq', 'mths_since_last_record', 'open_acc', 'pub_rec', 'revol_bal', 'revol_util', 'total_acc', 'initial_list_status', 'out_prncp', 'out_prncp_inv', 'total_pymnt', 'total_pymnt_inv', 'total_rec_prncp', 'total_rec_int', 'total_rec_late_fee', 'recoveries', 'collection_recovery_fee', 'last_pymnt_d', 'last_pymnt_amnt', 'next_pymnt_d', 'last_credit_pull_d', 'last_fico_range_high', 'last_fico_range_low', 'collections_12_mths_ex_med', 'mths_since_last_major_derog', 'policy_code', 'application_type', 'annual_inc_joint', 'dti_joint', 'verification_status_joint', 'acc_now_delinq', 'tot_coll_amt', 'tot_cur_bal', 'open_acc_6m', 'open_act_il', 'open_il_12m', 'open_il_24m', 'mths_since_rcnt_il', 'total_bal_il', 'il_util', 'open_rv_12m', 'open_rv_24m', 'max_bal_bc', 'all_util', 'total_rev_hi_lim', 'inq_fi', 'total_cu_tl', 'inq_last_12m', 'acc_open_past_24mths', 'avg_cur_bal', 'bc_open_to_buy', 'bc_util', 'chargeoff_within_12_mths', 'delinq_amnt', 'mo_sin_old_il_acct', 'mo_sin_old_rev_tl_op', 'mo_sin_rcnt_rev_tl_op', 'mo_sin_rcnt_tl', 'mort_acc', 'mths_since_recent_bc', 'mths_since_recent_bc_dlq', 'mths_since_recent_inq', 'mths_since_recent_revol_delinq', 'num_accts_ever_120_pd', 'num_actv_bc_tl', 'num_actv_rev_tl', 'num_bc_sats', 'num_bc_tl', 'num_il_tl', 'num_op_rev_tl', 'num_rev_accts', 'num_rev_tl_bal_gt_0', 'num_sats', 'num_tl_120dpd_2m', 'num_tl_30dpd', 'num_tl_90g_dpd_24m', 'num_tl_op_past_12m', 'pct_tl_nvr_dlq', 'percent_bc_gt_75', 'pub_rec_bankruptcies', 'tax_liens', 'tot_hi_cred_lim', 'total_bal_ex_mort', 'total_bc_limit', 'total_il_high_credit_limit', 'revol_bal_joint', 'sec_app_fico_range_low', 'sec_app_fico_range_high', 'sec_app_earliest_cr_line', 'sec_app_inq_last_6mths', 'sec_app_mort_acc', 'sec_app_open_acc', 'sec_app_revol_util', 'sec_app_open_act_il', 'sec_app_num_rev_accts', 'sec_app_chargeoff_within_12_mths', 'sec_app_collections_12_mths_ex_med', 'sec_app_mths_since_last_major_derog', 'hardship_flag', 'hardship_type', 'hardship_reason', 'hardship_status', 'deferral_term', 'hardship_amount', 'hardship_start_date', 'hardship_end_date', 'payment_plan_start_date', 'hardship_length', 'hardship_dpd', 'hardship_loan_status', 'orig_projected_additional_accrued_interest', 'hardship_payoff_balance_amount', 'hardship_last_payment_amount', 'disbursement_method', 'debt_settlement_flag', 'debt_settlement_flag_date', 'settlement_status', 'settlement_date', 'settlement_amount', 'settlement_percentage', 'settlement_term']
+Shape: (50000, 151)
+
+==================================================
+Step: Manual Column Dropping
+==================================================
+Dropped columns: ['id', 'emp_title', 'issue_d', 'pymnt_plan', 'url', 'title', 'zip_code', 'addr_state', 'earliest_cr_line', 'initial_list_status', 'out_prncp', 'last_pymnt_d', 'last_pymnt_amnt', 'last_credit_pull_d', 'last_fico_range_high', 'last_fico_range_low', 'policy_code', 'hardship_flag', 'disbursement_method', 'debt_settlement_flag']
+
+==================================================
+Step: High Missing Value Columns Dropped
+==================================================
+Columns dropped due to >30% missing values:
+
+member_id                                     50000
+desc                                          47293
+mths_since_last_delinq                        25618
+mths_since_last_record                        42159
+next_pymnt_d                                  29835
+mths_since_last_major_derog                   37057
+annual_inc_joint                              47394
+dti_joint                                     47394
+verification_status_joint                     47513
+open_acc_6m                                   19209
+open_act_il                                   19209
+open_il_12m                                   19209
+open_il_24m                                   19209
+mths_since_rcnt_il                            20157
+total_bal_il                                  19209
+il_util                                       23702
+open_rv_12m                                   19209
+open_rv_24m                                   19209
+max_bal_bc                                    19209
+all_util                                      19214
+inq_fi                                        19209
+total_cu_tl                                   19209
+inq_last_12m                                  19209
+mths_since_recent_bc_dlq                      38286
+mths_since_recent_revol_delinq                33438
+revol_bal_joint                               47663
+sec_app_fico_range_low                        47663
+sec_app_fico_range_high                       47663
+sec_app_earliest_cr_line                      47663
+sec_app_inq_last_6mths                        47663
+sec_app_mort_acc                              47663
+sec_app_open_acc                              47663
+sec_app_revol_util                            47701
+sec_app_open_act_il                           47663
+sec_app_num_rev_accts                         47663
+sec_app_chargeoff_within_12_mths              47663
+sec_app_collections_12_mths_ex_med            47663
+sec_app_mths_since_last_major_derog           49218
+hardship_type                                 49753
+hardship_reason                               49753
+hardship_status                               49753
+deferral_term                                 49753
+hardship_amount                               49753
+hardship_start_date                           49753
+hardship_end_date                             49753
+payment_plan_start_date                       49753
+hardship_length                               49753
+hardship_dpd                                  49753
+hardship_loan_status                          49753
+orig_projected_additional_accrued_interest    49805
+hardship_payoff_balance_amount                49753
+hardship_last_payment_amount                  49753
+debt_settlement_flag_date                     49252
+settlement_status                             49252
+settlement_date                               49252
+settlement_amount                             49252
+settlement_percentage                         49252
+settlement_term                               49252
+
+==================================================
+Step: Correlation-based Feature Removal
+==================================================
+Threshold: 0.95
+Dropped columns: ['funded_amnt', 'funded_amnt_inv', 'fico_range_high', 'total_pymnt_inv', 'total_rec_prncp', 'collection_recovery_fee', 'num_rev_tl_bal_gt_0', 'num_sats', 'tot_hi_cred_lim']
+
+==================================================
+Step: Imputation
+==================================================
+Imputed columns:
+loan_amnt: Mean = 15026.809
+term: Mode =  36 months
+int_rate: Mean = 13.090921799999998
+installment: Mean = 444.90737359999997
+grade: Mode = C
+sub_grade: Mode = C1
+emp_length: Mode = 10+ years
+home_ownership: Mode = MORTGAGE
+annual_inc: Mean = 77756.3958406
+verification_status: Mode = Source Verified
+loan_status: Mode = Fully Paid
+purpose: Mode = debt_consolidation
+dti: Mean = 18.690888617528124
+delinq_2yrs: Mean = 0.31094487559004713
+fico_range_low: Mean = 698.4511
+inq_last_6mths: Mean = 0.5751060084806784
+open_acc: Mean = 11.604448355868469
+pub_rec: Mean = 0.19263541083286662
+revol_bal: Mean = 16901.80254
+revol_util: Mean = 50.47928362631642
+total_acc: Mean = 24.140771261700937
+out_prncp_inv: Mean = 4204.471835
+total_pymnt: Mean = 12106.699916319976
+total_rec_int: Mean = 2437.8706454
+total_rec_late_fee: Mean = 1.4393634535202031
+recoveries: Mean = 143.1092702
+collections_12_mths_ex_med: Mean = 0.01830256235873022
+application_type: Mode = Individual
+acc_now_delinq: Mean = 0.004100328026242099
+tot_coll_amt: Mean = 213.63957838172988
+tot_cur_bal: Mean = 142733.2055802418
+total_rev_hi_lim: Mean = 34890.80475353933
+acc_open_past_24mths: Mean = 4.526418145714344
+avg_cur_bal: Mean = 13605.419188161379
+bc_open_to_buy: Mean = 11426.464307896154
+bc_util: Mean = 58.04858616617985
+chargeoff_within_12_mths: Mean = 0.00892124897485648
+delinq_amnt: Mean = 9.705436434914793
+mo_sin_old_il_acct: Mean = 125.30533845825326
+mo_sin_old_rev_tl_op: Mean = 182.02672315800353
+mo_sin_rcnt_rev_tl_op: Mean = 14.014735971892115
+mo_sin_rcnt_tl: Mean = 8.304722537976646
+mort_acc: Mean = 1.5524371020901142
+mths_since_recent_bc: Mean = 24.697508896797157
+mths_since_recent_inq: Mean = 7.019125871711662
+num_accts_ever_120_pd: Mean = 0.5041438462333369
+num_actv_bc_tl: Mean = 3.6874444559264243
+num_actv_rev_tl: Mean = 5.638090317247082
+num_bc_sats: Mean = 4.78326894624363
+num_bc_tl: Mean = 7.752113258241192
+num_il_tl: Mean = 8.37195411801178
+num_op_rev_tl: Mean = 8.253859667252247
+num_rev_accts: Mean = 14.038627673865868
+num_tl_120dpd_2m: Mean = 0.0006656360044662028
+num_tl_30dpd: Mean = 0.0026454479694120086
+num_tl_90g_dpd_24m: Mean = 0.08434432158726878
+num_tl_op_past_12m: Mean = 2.0782060555957425
+pct_tl_nvr_dlq: Mean = 94.06643515647609
+percent_bc_gt_75: Mean = 42.63617897962565
+pub_rec_bankruptcies: Mean = 0.12543526115669398
+tax_liens: Mean = 0.04496539584750169
+total_bal_ex_mort: Mean = 51320.87559622511
+total_bc_limit: Mean = 23284.8531392659
+total_il_high_credit_limit: Mean = 43772.37441355792
+
+==================================================
+Step: Outlier Handling
+==================================================
+Method: IQR
+Action: Remove Rows
+Column loan_amnt: 790 rows removed
+Column int_rate: 919 rows removed
+Column installment: 1353 rows removed
+Column annual_inc: 2136 rows removed
+Column dti: 362 rows removed
+Column delinq_2yrs: 8186 rows removed
+Column fico_range_low: 947 rows removed
+Column inq_last_6mths: 1458 rows removed
+Column open_acc: 831 rows removed
+Column pub_rec: 5586 rows removed
+Column revol_bal: 1339 rows removed
+Column revol_util: 0 rows removed
+Column total_acc: 370 rows removed
+Column out_prncp_inv: 2255 rows removed
+Column total_pymnt: 527 rows removed
+Column total_rec_int: 1493 rows removed
+Column total_rec_late_fee: 674 rows removed
+Column recoveries: 1541 rows removed
+Column collections_12_mths_ex_med: 251 rows removed
+Column acc_now_delinq: 0 rows removed
+Column tot_coll_amt: 3449 rows removed
+Column tot_cur_bal: 563 rows removed
+Column total_rev_hi_lim: 521 rows removed
+Column acc_open_past_24mths: 597 rows removed
+Column avg_cur_bal: 812 rows removed
+Column bc_open_to_buy: 819 rows removed
+Column bc_util: 0 rows removed
+Column chargeoff_within_12_mths: 16 rows removed
+Column delinq_amnt: 0 rows removed
+Column mo_sin_old_il_acct: 190 rows removed
+Column mo_sin_old_rev_tl_op: 505 rows removed
+Column mo_sin_rcnt_rev_tl_op: 782 rows removed
+Column mo_sin_rcnt_tl: 446 rows removed
+Column mort_acc: 1388 rows removed
+Column mths_since_recent_bc: 642 rows removed
+Column mths_since_recent_inq: 34 rows removed
+Column num_accts_ever_120_pd: 1375 rows removed
+Column num_actv_bc_tl: 55 rows removed
+Column num_actv_rev_tl: 260 rows removed
+Column num_bc_sats: 179 rows removed
+Column num_bc_tl: 156 rows removed
+Column num_il_tl: 265 rows removed
+Column num_op_rev_tl: 48 rows removed
+Column num_rev_accts: 105 rows removed
+Column num_tl_120dpd_2m: 150 rows removed
+Column num_tl_30dpd: 0 rows removed
+Column num_tl_90g_dpd_24m: 0 rows removed
+Column num_tl_op_past_12m: 523 rows removed
+Column pct_tl_nvr_dlq: 954 rows removed
+Column percent_bc_gt_75: 0 rows removed
+Column pub_rec_bankruptcies: 0 rows removed
+Column tax_liens: 0 rows removed
+Column total_bal_ex_mort: 175 rows removed
+Column total_bc_limit: 56 rows removed
+Column total_il_high_credit_limit: 34 rows removed
+
+==================================================
+Step: Skewness Handling
+==================================================
+Column loan_amnt: Right skew (0.80) -> Square Root
+Column int_rate: Right skew (0.51) -> Square Root
+Column installment: Right skew (0.91) -> Square Root
+Column annual_inc: Right skew (1.07) -> Square Root
+Column fico_range_low: Right skew (0.59) -> Square Root
+Column inq_last_6mths: Right skew (1.50) -> Square Root
+Column open_acc: Right skew (0.73) -> Square Root
+Column revol_bal: Right skew (1.05) -> Square Root
+Column total_acc: Right skew (0.62) -> Square Root
+Column out_prncp_inv: Right skew (1.46) -> Square Root
+Column total_pymnt: Right skew (1.02) -> Square Root
+Column total_rec_int: Right skew (1.19) -> Square Root
+Column tot_cur_bal: Right skew (2.10) -> Square Root
+Column total_rev_hi_lim: Right skew (0.74) -> Square Root
+Column acc_open_past_24mths: Right skew (0.75) -> Square Root
+Column avg_cur_bal: Right skew (1.94) -> Square Root
+Column bc_open_to_buy: Right skew (1.20) -> Square Root
+Column mo_sin_old_rev_tl_op: Right skew (1.01) -> Square Root
+Column mo_sin_rcnt_rev_tl_op: Right skew (1.03) -> Square Root
+Column mo_sin_rcnt_tl: Right skew (0.72) -> Square Root
+Column mort_acc: Right skew (1.79) -> Square Root
+Column mths_since_recent_bc: Right skew (0.87) -> Square Root
+Column mths_since_recent_inq: Right skew (0.68) -> Square Root
+Column num_bc_tl: Right skew (0.60) -> Square Root
+Column num_il_tl: Right skew (1.17) -> Square Root
+Column num_op_rev_tl: Right skew (0.54) -> Square Root
+Column num_rev_accts: Right skew (0.61) -> Square Root
+Column total_bal_ex_mort: Right skew (0.81) -> Square Root
+Column total_bc_limit: Right skew (0.70) -> Square Root
+Column total_il_high_credit_limit: Right skew (0.71) -> Square Root
+
+==================================================
+Step: Target Encoding
+==================================================
+Encoded target column: loan_status
+
+==================================================
+Step: Feature Scaling
+==================================================
+Method: Standard Scaler
+Scaled columns: ['loan_amnt', 'int_rate', 'installment', 'annual_inc', 'dti', 'delinq_2yrs', 'fico_range_low', 'inq_last_6mths', 'open_acc', 'pub_rec', 'revol_bal', 'revol_util', 'total_acc', 'out_prncp_inv', 'total_pymnt', 'total_rec_int', 'total_rec_late_fee', 'recoveries', 'collections_12_mths_ex_med', 'acc_now_delinq', 'tot_coll_amt', 'tot_cur_bal', 'total_rev_hi_lim', 'acc_open_past_24mths', 'avg_cur_bal', 'bc_open_to_buy', 'bc_util', 'chargeoff_within_12_mths', 'delinq_amnt', 'mo_sin_old_il_acct', 'mo_sin_old_rev_tl_op', 'mo_sin_rcnt_rev_tl_op', 'mo_sin_rcnt_tl', 'mort_acc', 'mths_since_recent_bc', 'mths_since_recent_inq', 'num_accts_ever_120_pd', 'num_actv_bc_tl', 'num_actv_rev_tl', 'num_bc_sats', 'num_bc_tl', 'num_il_tl', 'num_op_rev_tl', 'num_rev_accts', 'num_tl_120dpd_2m', 'num_tl_30dpd', 'num_tl_90g_dpd_24m', 'num_tl_op_past_12m', 'pct_tl_nvr_dlq', 'percent_bc_gt_75', 'pub_rec_bankruptcies', 'tax_liens', 'total_bal_ex_mort', 'total_bc_limit', 'total_il_high_credit_limit']
+
+==================================================
+Step: Categorical Column Dropped
+==================================================
+Columns dropped due to high cardinality:
+sub_grade: 30 unique values
+emp_length: 11 unique values
+purpose: 13 unique values
+
+==================================================
+Step: Categorical Encoding
+==================================================
+Encoded columns: ['term', 'grade', 'home_ownership', 'verification_status', 'application_type']
+New features created: ['term_ 60 months', 'grade_B', 'grade_C', 'grade_D', 'grade_E', 'grade_F', 'home_ownership_MORTGAGE', 'home_ownership_OWN', 'home_ownership_RENT', 'verification_status_Source Verified', 'verification_status_Verified', 'application_type_Joint App']
+
+==================================================
+Step: Train-Test Split
+==================================================
+Test size: 20%
+Training set shape: (3106, 67)
+Test set shape: (777, 67)
+
+==================================================
+Step: Model Results
+==================================================
+
+            Model: Linear Regression
+            R² Score: 0.4899
+            Mean Absolute Error: 0.2931
+            Mean Squared Error: 0.2089
+            Root Mean Squared Error: 0.4570
+            

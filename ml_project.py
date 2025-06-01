@@ -164,11 +164,12 @@ def run_model(csv_file,
     initial_columns = list(df.columns)
     log_step(log_file, "Initial Data Info", f"Initial columns: {initial_columns}\nShape: {df.shape}")
 
+    # Log dropped columns
     if drop_column:
         df.drop(columns=drop_column, errors="ignore", inplace=True)
         log_step(log_file, "Manual Column Dropping", f"Dropped columns: {drop_column}")
 
-
+    # Log high missing value columns
     drop_nan = df.isnull().sum()
     drop_nan = drop_nan[drop_nan.values > len(df)*.30]
     if not drop_nan.empty:
@@ -176,7 +177,7 @@ def run_model(csv_file,
         log_step(log_file, "High Missing Value Columns Dropped", 
                 f"Columns dropped due to >30% missing values:\n\n{drop_nan.to_string()}")
 
-    
+    # Log correlation-based feature removal
     if corr_threshold > 0:
         df_numeric = df.select_dtypes(include=['number']).drop(columns=[input_column], errors='ignore')
         if not df_numeric.empty:
@@ -188,7 +189,7 @@ def run_model(csv_file,
                 log_step(log_file, "Correlation-based Feature Removal", 
                         f"Threshold: {corr_threshold}\nDropped columns: {to_drop}")
 
-    
+    # Log imputation
     if imputation != "None":
         imputed_cols = []
         for col in df.columns:
@@ -207,7 +208,7 @@ def run_model(csv_file,
             log_step(log_file, "Imputation", 
                     "Imputed columns:\n" + "\n".join([f"{col}: {method} = {value}" for col, method, value in imputed_cols]))
 
-  
+    # Log outlier handling
     if outlier_method != "None" and outlier_action != "None":
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         outlier_info = []
@@ -246,7 +247,7 @@ def run_model(csv_file,
             log_step(log_file, "Outlier Handling", 
                     f"Method: {outlier_method}\nAction: {outlier_action}\n" + "\n".join(outlier_info))
 
-    
+    # Log skewness handling
     if skew_method_right != "None" or skew_method_left != "None":
         skew_info = []
         for col in df.select_dtypes(include=[np.number]).columns:
@@ -273,7 +274,7 @@ def run_model(csv_file,
         if skew_info:
             log_step(log_file, "Skewness Handling", "\n".join(skew_info))
 
-   
+    # Log encoding
     if input_column in df.columns and pd.api.types.is_object_dtype(df[input_column]):
         le = LabelEncoder()
         df[input_column] = le.fit_transform(df[input_column])
@@ -282,7 +283,7 @@ def run_model(csv_file,
     y = df[input_column]
     X = df.drop(input_column, axis=1)
 
-   
+    # Log scaling
     if scaling_method != "None":
         if scaling_method == "Standard Scaler":
             scaler = StandardScaler()
@@ -294,13 +295,13 @@ def run_model(csv_file,
         X[numeric_cols] = pd.DataFrame(scaled_vals, columns=numeric_cols, index=X.index)
         log_step(log_file, "Feature Scaling", f"Method: {scaling_method}\nScaled columns: {list(numeric_cols)}")
 
-   
+    # Log categorical encoding
     category_column = X.select_dtypes(include='object').columns.tolist()
     columns_to_encode = []
     dropped_columns_info = []
     
     for col in category_column:
-        if col not in X.columns:  
+        if col not in X.columns:  # Skip if column was already dropped
             continue
         unique_count = X[col].nunique()
         if unique_count <= 10:
@@ -331,6 +332,7 @@ def run_model(csv_file,
         X, y, test_size=test_size/100, random_state=42)
     log_step(log_file, "Train-Test Split", f"Test size: {test_size}%\nTraining set shape: {X_train.shape}\nTest set shape: {X_test.shape}")
 
+    # Log sampling
     if sampling_method != "None":
         if sampling_method == "Up Sampling":
             sampler = RandomOverSampler(random_state=42)
@@ -342,7 +344,7 @@ def run_model(csv_file,
         X_train, y_train = sampler.fit_resample(X_train, y_train)
         log_step(log_file, "Sampling", f"Method: {sampling_method}\nNew training set shape: {X_train.shape}")
 
-    
+    # Log model training and results
     if model_name == "Apply All":
         results = run_all_models(X_train, X_test, y_train, y_test, problem_type)
         table = format_results_table(results, problem_type)
@@ -491,13 +493,14 @@ def run_model(csv_file,
 
 def analyze_log_with_ai(log_file, user_query):
     try:
-    
+        # Read the log file
         with open(log_file, 'r') as f:
             log_content = f.read()
         
-    
+        # Initialize Together client
         client = Together(api_key='70a19ed73f75eacf938df0612fcbd9c4d3d7fd1089d6a23d9eace82f134d07f5')
         
+        # Create the prompt with log content and user query
         prompt = f"""Here is the preprocessing and model training log:
 {log_content}
 
@@ -505,6 +508,7 @@ User Query: {user_query}
 
 Please analyze the log and provide insights based on the user's query. Focus on explaining the preprocessing steps, model performance, and any relevant patterns or issues you notice."""
 
+        # Get response from the AI
         response = client.chat.completions.create(
             model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
             messages=[
@@ -546,9 +550,9 @@ with gr.Blocks() as demo:
             label="Correlation Threshold (Remove Features Above)"
         )
         imputation=gr.Dropdown(
-            ["Mean","Median","None"],
+            ["Mean","Median"],
             label="Imputation",
-            value="None",
+            value="Mean",
             interactive=True,
         )
         
@@ -604,6 +608,7 @@ with gr.Blocks() as demo:
         download_csv = gr.File(label="Download Prediction CSV")
         download_log = gr.File(label="Download Processing Log")
 
+    # Add chatbot interface
     with gr.Row():
         with gr.Column():
             chatbot = gr.Chatbot(label="AI Analysis", height=400)
@@ -648,7 +653,7 @@ with gr.Blocks() as demo:
                        corr_threshold, imputation, scaling_method, test_size,
                        sampling_method, skew_method_right, skew_method_left,
                        outlier_method, outlier_action):
-
+        # Run the model
         report, results_file, log_file = run_model(
             csv_file, problem_type, model_name, input_column, drop_column,
             corr_threshold, imputation, scaling_method, test_size,
@@ -656,6 +661,7 @@ with gr.Blocks() as demo:
             outlier_method, outlier_action
         )
         
+        # Initial analysis
         initial_analysis = analyze_log_with_ai(log_file, "Provide a summary of the preprocessing steps and model performance")
         
         return report, results_file, log_file, [(None, initial_analysis)]
@@ -667,6 +673,7 @@ with gr.Blocks() as demo:
         response = analyze_log_with_ai(log_file, user_query)
         return chat_history + [(user_query, response)]
 
+    # Update the run button click event
     run_button.click(
         run_and_analyze,
         inputs=[
@@ -688,7 +695,7 @@ with gr.Blocks() as demo:
         outputs=[output_features, download_csv, download_log, chatbot]
     )
 
-   
+    # Add analyze button click event
     analyze_button.click(
         analyze_query,
         inputs=[download_log, user_query, chatbot],
