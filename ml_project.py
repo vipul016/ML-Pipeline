@@ -11,6 +11,10 @@ from sklearn.metrics import (mean_squared_error, r2_score,
                             accuracy_score, precision_score, 
                             recall_score, f1_score, 
                             classification_report)
+from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+import xgboost as xgb
+from catboost import CatBoostRegressor, CatBoostClassifier
 
 from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 from sklearn.preprocessing import LabelEncoder
@@ -128,7 +132,8 @@ def run_model(csv_file,
                 elif skew_method_right == "Cube Root":
                     df[col] = np.cbrt(df[col])
                 elif skew_method_right == "Logarithms":
-                    df[col] = np.log(df[col].clip(lower=1e-9))
+                    # df[col] = np.log(df[col].clip(lower=1e-9))
+                    pass
                 elif skew_method_right == "Reciprocal":
                     df[col] = 1 / df[col].replace(0, 1e-9)
             elif skew < -0.5:
@@ -193,7 +198,7 @@ def run_model(csv_file,
             elif sampling_method == "SMOTE":
                 sampler = SMOTETomek(random_state=42)
                 X_train,y_train=sampler.fit_resample(X_train,y_train)
-    
+
     if problem_type == "Regression":
             if model_name == "Linear Regression":
                 model = LinearRegression()
@@ -203,14 +208,22 @@ def run_model(csv_file,
                 model = DecisionTreeRegressor()
             elif model_name == "SVR":
                 model = SVR()
+            elif model_name == "KNN":
+                model = KNeighborsRegressor()
+            elif model_name == "XGBoost":
+                model = xgb.XGBRegressor()
+            elif model_name == "CatBoost":
+                model = CatBoostRegressor(verbose=False)
+            
                 
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
             results_df = pd.DataFrame({
-                    "Actual": y_test.values,
-                    "Predicted": y_pred
-                })
+                "Actual": y_test.values.ravel(),
+                "Predicted": y_pred.ravel()
+            })
+
             results_df.to_csv("results.csv",index=False)
                 
             mse = mean_squared_error(y_test, y_pred)
@@ -249,14 +262,25 @@ def run_model(csv_file,
                 model = DecisionTreeClassifier()
             elif model_name == "SVC":
                 model = SVC()
+            elif model_name == "KNN":
+                model = KNeighborsClassifier()
+            elif model_name == "Naive Bayes":
+                model = GaussianNB()
+            elif model_name == "XGBoost":
+                model = xgb.XGBClassifier()
+            elif model_name == "CatBoost":
+                model = CatBoostClassifier(verbose=False)
+            
+            
                 
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
             results_df = pd.DataFrame({
-                    "Actual": y_test.values,
-                    "Predicted": y_pred
-                })
+                "Actual": y_test.values.ravel(),
+                "Predicted": y_pred.ravel()
+            })
+
             results_df.to_csv("results.csv",index=False)
                 
             accuracy = accuracy_score(y_test, y_pred)
@@ -309,7 +333,7 @@ with gr.Blocks() as demo:
             value="Regression",interactive=True)
         
         model_name=gr.Dropdown(
-            ["Linear Regression","Random Forest","Decision Tree","SVR"],
+            ["Linear Regression","Random Forest","Decision Tree","SVR","KNN","XGBoost","CatBoost","Apply All"],
             label="Model",
             value="Linear Regression",
             interactive=True
@@ -384,13 +408,13 @@ with gr.Blocks() as demo:
 
     def update_model_options(problem_type):
         if problem_type=="Regression":
-            return gr.Dropdown(choices=["Linear Regression","Random Forest","Decision Tree","SVR"],
+            return gr.Dropdown(choices=["Linear Regression","Random Forest","Decision Tree","SVR","KNN","XGBoost","CatBoost","Apply All"],
             value="Linear Regression",
             label="Model",
             interactive=True)
         else:
             return  gr.Dropdown(
-                choices=["Logistic Regression","Random Forest","Decision Tree","SVC"],
+                choices=["Logistic Regression","Random Forest","Decision Tree","SVC","KNN","Naive Bayes","XGBoost","CatBoost","Apply All"],
                 value="Logistic Regression",
                 label="Model",
                 interactive=True)
