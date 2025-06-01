@@ -28,6 +28,99 @@ from collections import Counter
 from functools import partial
 
 
+def run_all_models(X_train, X_test, y_train, y_test, problem_type):
+    results = []
+    
+    if problem_type == "Regression":
+        models = {
+            "Linear Regression": LinearRegression(),
+            "Random Forest": RandomForestRegressor(),
+            "Decision Tree": DecisionTreeRegressor(),
+            "SVR": SVR(),
+            "KNN": KNeighborsRegressor(),
+            "XGBoost": xgb.XGBRegressor(),
+            "CatBoost": CatBoostRegressor(verbose=False)
+        }
+    else:
+        models = {
+            "Logistic Regression": LogisticRegression(),
+            "Random Forest": RandomForestClassifier(),
+            "Decision Tree": DecisionTreeClassifier(),
+            "SVC": SVC(),
+            "KNN": KNeighborsClassifier(),
+            "Naive Bayes": GaussianNB(),
+            "XGBoost": xgb.XGBClassifier(),
+            "CatBoost": CatBoostClassifier(verbose=False)
+        }
+    
+    for model_name, model in models.items():
+        try:
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            
+            if problem_type == "Regression":
+                metrics = {
+                    "R² Score": r2_score(y_test, y_pred),
+                    "MAE": np.mean(np.abs(y_test - y_pred)),
+                    "MSE": mean_squared_error(y_test, y_pred),
+                    "RMSE": np.sqrt(mean_squared_error(y_test, y_pred))
+                }
+            else:
+                metrics = {
+                    "Accuracy": accuracy_score(y_test, y_pred),
+                    "Precision": precision_score(y_test, y_pred, average='weighted'),
+                    "Recall": recall_score(y_test, y_pred, average='weighted'),
+                    "F1 Score": f1_score(y_test, y_pred, average='weighted')
+                }
+               
+            
+            results.append({
+                "model": model_name,
+                "parameters": model.get_params(),
+                "metrics": metrics
+            })
+            
+        except Exception as e:
+            results.append({
+                "model": model_name,
+                "error": str(e)
+            })
+    
+    return results
+
+def format_results_table(results, problem_type):
+    if problem_type == "Regression":
+        headers = ["Model", "R² Score", "MAE", "MSE", "RMSE"]
+    else:
+        headers = ["Model", "Accuracy", "Precision", "Recall", "F1 Score",]
+    
+    table = "| " + " |  ".join(headers) + "  |\n"
+    
+    for result in results:
+        if "error" in result:
+            row = [result["model"], "Error: " + result["error"]] + ["N/A"] * (len(headers) - 2)
+        else:
+            metrics = result["metrics"]
+            if problem_type == "Regression":
+                row = [
+                    result["model"],
+                    f"{metrics['R² Score']:.4f}",
+                    f"{metrics['MAE']:.4f}",
+                    f"{metrics['MSE']:.4f}",
+                    f"{metrics['RMSE']:.4f}"
+                ]
+            else:
+                row = [
+                    result["model"],
+                    f"{metrics['Accuracy']:.4f}",
+                    f"{metrics['Precision']:.4f}",
+                    f"{metrics['Recall']:.4f}",
+                    f"{metrics['F1 Score']:.4f}",
+                ]
+        table += "|  " + "  |  ".join(row) + "  |\n"
+    
+    return table
+
 
 def run_model(csv_file,
             problem_type,
@@ -198,8 +291,19 @@ def run_model(csv_file,
             elif sampling_method == "SMOTE":
                 sampler = SMOTETomek(random_state=42)
                 X_train,y_train=sampler.fit_resample(X_train,y_train)
-
-    if problem_type == "Regression":
+    if model_name == "Apply All":
+        results = run_all_models(X_train, X_test, y_train, y_test, problem_type)
+        table = format_results_table(results, problem_type)
+        
+        report = f"""
+            Model Comparison Results ({problem_type})
+            Target: {input_column}
+            
+            {table}
+            
+            """
+        return report, "results.csv"
+    elif problem_type == "Regression":
             if model_name == "Linear Regression":
                 model = LinearRegression()
             elif model_name == "Random Forest":
