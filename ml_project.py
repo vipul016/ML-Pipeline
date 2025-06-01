@@ -340,7 +340,14 @@ def run_model(csv_file,
         elif sampling_method == "Down Sampling":
             sampler = RandomUnderSampler(random_state=42)
         elif sampling_method == "SMOTE":
-            sampler = SMOTETomek(random_state=42)
+            # Check if we have enough samples for SMOTE
+            min_samples = min(Counter(y_train).values())
+            if min_samples < 6:  # SMOTE requires at least 6 samples in minority class
+                log_step(log_file, "Sampling", 
+                        f"Warning: Not enough samples for SMOTE (minimum class has {min_samples} samples). Using RandomOverSampler instead.")
+                sampler = RandomOverSampler(random_state=42)
+            else:
+                sampler = SMOTETomek(random_state=42)
         
         X_train, y_train = sampler.fit_resample(X_train, y_train)
         log_step(log_file, "Sampling", f"Method: {sampling_method}\nNew training set shape: {X_train.shape}")
