@@ -30,8 +30,12 @@ from scipy import stats
 from collections import Counter
 from functools import partial
 
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-def run_all_models(X_train, X_test, y_train, y_test, problem_type):
+
+def run_all_models(X_train, X_test, y_train, y_test, problem_type, metric_average="weighted"):
     results = []
     
     if problem_type == "Regression":
@@ -71,12 +75,11 @@ def run_all_models(X_train, X_test, y_train, y_test, problem_type):
             else:
                 metrics = {
                     "Accuracy": accuracy_score(y_test, y_pred),
-                    "Precision": precision_score(y_test, y_pred, average='weighted'),
-                    "Recall": recall_score(y_test, y_pred, average='weighted'),
-                    "F1 Score": f1_score(y_test, y_pred, average='weighted')
+                    "Precision": precision_score(y_test, y_pred, average=metric_average),
+                    "Recall": recall_score(y_test, y_pred, average=metric_average),
+                    "F1 Score": f1_score(y_test, y_pred, average=metric_average)
                 }
                
-            
             results.append({
                 "model": model_name,
                 "parameters": model.get_params(),
@@ -91,11 +94,11 @@ def run_all_models(X_train, X_test, y_train, y_test, problem_type):
     
     return results
 
-def format_results_table(results, problem_type):
+def format_results_table(results, problem_type, metric_average="weighted"):
     if problem_type == "Regression":
         headers = ["Model", "R² Score", "MAE", "MSE", "RMSE"]
     else:
-        headers = ["Model", "Accuracy", "Precision", "Recall", "F1 Score",]
+        headers = ["Model", "Accuracy", "Precision", "Recall", "F1 Score"]
     
     table = "| " + " |  ".join(headers) + "  |\n"
     
@@ -118,9 +121,12 @@ def format_results_table(results, problem_type):
                     f"{metrics['Accuracy']:.4f}",
                     f"{metrics['Precision']:.4f}",
                     f"{metrics['Recall']:.4f}",
-                    f"{metrics['F1 Score']:.4f}",
+                    f"{metrics['F1 Score']:.4f}"
                 ]
         table += "|  " + "  |  ".join(row) + "  |\n"
+    
+    if problem_type == "Classification":
+        table += f"\nMetric Averaging Method: {metric_average}"
     
     return table
 
@@ -165,12 +171,12 @@ def run_model(csv_file,
     initial_columns = list(df.columns)
     log_step(log_file, "Initial Data Info", f"Initial columns: {initial_columns}\nShape: {df.shape}")
 
-    # Log dropped columns
+    
     if drop_column:
         df.drop(columns=drop_column, errors="ignore", inplace=True)
         log_step(log_file, "Manual Column Dropping", f"Dropped columns: {drop_column}")
 
-    # Log high missing value columns
+   
     drop_nan = df.isnull().sum()
     drop_nan = drop_nan[drop_nan.values > len(df)*missing_threshold]
     if not drop_nan.empty:
@@ -178,7 +184,7 @@ def run_model(csv_file,
         log_step(log_file, "High Missing Value Columns Dropped", 
                 f"Columns dropped due to >{missing_threshold*100}% missing values:\n\n{drop_nan.to_string()}")
 
-    # Log correlation-based feature removal
+    
     if corr_threshold > 0:
         df_numeric = df.select_dtypes(include=['number']).drop(columns=[input_column], errors='ignore')
         if not df_numeric.empty:
@@ -190,7 +196,7 @@ def run_model(csv_file,
                 log_step(log_file, "Correlation-based Feature Removal", 
                         f"Threshold: {corr_threshold}\nDropped columns: {to_drop}")
 
-    # Log imputation
+   
     if imputation != "None":
         imputed_cols = []
         for col in df.columns:
@@ -209,7 +215,7 @@ def run_model(csv_file,
             log_step(log_file, "Imputation", 
                     "Imputed columns:\n" + "\n".join([f"{col}: {method} = {value}" for col, method, value in imputed_cols]))
 
-    # Log outlier handling
+    
     if outlier_method != "None" and outlier_action != "None":
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         outlier_info = []
@@ -248,7 +254,6 @@ def run_model(csv_file,
             log_step(log_file, "Outlier Handling", 
                     f"Method: {outlier_method}\nAction: {outlier_action}\n" + "\n".join(outlier_info))
 
-    # Log skewness handling
     if skew_method_right != "None" or skew_method_left != "None":
         skew_info = []
         for col in df.select_dtypes(include=[np.number]).columns:
@@ -275,7 +280,7 @@ def run_model(csv_file,
         if skew_info:
             log_step(log_file, "Skewness Handling", "\n".join(skew_info))
 
-    # Log encoding
+    
     if input_column in df.columns and pd.api.types.is_object_dtype(df[input_column]):
         le = LabelEncoder()
         df[input_column] = le.fit_transform(df[input_column])
@@ -284,7 +289,7 @@ def run_model(csv_file,
     y = df[input_column]
     X = df.drop(input_column, axis=1)
 
-    # Log scaling
+   
     if scaling_method != "None":
         if scaling_method == "Standard Scaler":
             scaler = StandardScaler()
@@ -296,13 +301,13 @@ def run_model(csv_file,
         X[numeric_cols] = pd.DataFrame(scaled_vals, columns=numeric_cols, index=X.index)
         log_step(log_file, "Feature Scaling", f"Method: {scaling_method}\nScaled columns: {list(numeric_cols)}")
 
-    # Log categorical encoding
+    
     category_column = X.select_dtypes(include='object').columns.tolist()
     columns_to_encode = []
     dropped_columns_info = []
     
     for col in category_column:
-        if col not in X.columns:  # Skip if column was already dropped
+        if col not in X.columns:  
             continue
         unique_count = X[col].nunique()
         if unique_count <= 10:
@@ -333,16 +338,16 @@ def run_model(csv_file,
         X, y, test_size=test_size/100, random_state=42)
     log_step(log_file, "Train-Test Split", f"Test size: {test_size}%\nTraining set shape: {X_train.shape}\nTest set shape: {X_test.shape}")
 
-    # Log sampling
+    
     if sampling_method != "None":
         if sampling_method == "Up Sampling":
             sampler = RandomOverSampler(random_state=42)
         elif sampling_method == "Down Sampling":
             sampler = RandomUnderSampler(random_state=42)
         elif sampling_method == "SMOTE":
-            # Check if we have enough samples for SMOTE
+            
             min_samples = min(Counter(y_train).values())
-            if min_samples < 6:  # SMOTE requires at least 6 samples in minority class
+            if min_samples < 6: 
                 log_step(log_file, "Sampling", 
                         f"Warning: Not enough samples for SMOTE (minimum class has {min_samples} samples). Using RandomOverSampler instead.")
                 sampler = RandomOverSampler(random_state=42)
@@ -352,15 +357,16 @@ def run_model(csv_file,
         X_train, y_train = sampler.fit_resample(X_train, y_train)
         log_step(log_file, "Sampling", f"Method: {sampling_method}\nNew training set shape: {X_train.shape}")
 
-    # Log model training and results
+   
     if model_name == "Apply All":
-        results = run_all_models(X_train, X_test, y_train, y_test, problem_type)
-        table = format_results_table(results, problem_type)
+        results = run_all_models(X_train, X_test, y_train, y_test, problem_type, metric_average)
+        table = format_results_table(results, problem_type, metric_average)
         log_step(log_file, "Model Comparison Results", table)
         
         report = f"""
             Model Comparison Results ({problem_type})
             Target: {input_column}
+            Metric Averaging Method: {metric_average}
             
             {table}
             """
@@ -397,13 +403,7 @@ def run_model(csv_file,
         r2 = r2_score(y_test, y_pred)
         mae = np.mean(np.abs(y_test - y_pred))
         
-        if hasattr(model, 'coef_'):
-            if len(model.coef_.shape) == 1:
-                coefficients = dict(zip(X.columns, model.coef_))
-            else:
-                coefficients = "Multiple coefficients "
-        else:
-            coefficients = "Feature importances not available for this model"
+        
         
         log_step(log_file, "Model Results", f"""
             Model: {model_name}
@@ -494,14 +494,14 @@ def run_model(csv_file,
 
 def analyze_log_with_ai(log_file, user_query):
     try:
-        # Read the log file
+    
         with open(log_file, 'r') as f:
             log_content = f.read()
         
-        # Initialize Together client
+        
         client = Together(api_key='70a19ed73f75eacf938df0612fcbd9c4d3d7fd1089d6a23d9eace82f134d07f5')
         
-        # Create the prompt with log content and user query
+       
         prompt = f"""Here is the preprocessing and model training log:
 {log_content}
 
@@ -509,7 +509,6 @@ User Query: {user_query}
 
 Please analyze the log and provide insights based on the user's query. Focus on explaining the preprocessing steps, model performance, and any relevant patterns or issues you notice."""
 
-        # Get response from the AI
         response = client.chat.completions.create(
             model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
             messages=[
@@ -524,216 +523,397 @@ Please analyze the log and provide insights based on the user's query. Focus on 
     except Exception as e:
         return f"Error analyzing log: {str(e)}"
 
+def create_data_visualizations(df, missing_threshold=0.3, outlier_method="IQR", outlier_action="Remove Rows", plot_type="all"):
+    """Create visualizations for data analysis"""
+    plots = []
+    
+    if plot_type in ["all", "missing"]:
+       
+        missing_values = df.isnull().sum()
+        missing_values = missing_values[missing_values > 0]
+        if not missing_values.empty:
+            threshold_line = len(df) * missing_threshold
+            fig_missing = px.bar(
+                x=missing_values.index,
+                y=missing_values.values,
+                title=f"Missing Values by Column (Threshold: {missing_threshold*100}%)",
+                labels={'x': 'Columns', 'y': 'Number of Missing Values'}
+            )
+            fig_missing.add_hline(
+                y=threshold_line,
+                line_dash="dash",
+                line_color="red",
+                annotation_text="Threshold",
+                annotation_position="top right"
+            )
+            plots.append((fig_missing, "Missing Values"))
+    
+    if plot_type in ["all", "skewness"]:
+        
+        numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
+        skewed_cols = [col for col in numeric_cols if abs(df[col].skew()) > 0.5]
+        
+        if skewed_cols:
+            n_cols = len(skewed_cols)
+            n_rows = (n_cols + 1) // 2 
+            
+            fig_skew = make_subplots(
+                rows=n_rows,
+                cols=2,
+                subplot_titles=[f"{col} (Skew: {df[col].skew():.2f})" for col in skewed_cols]
+            )
+            
+            for idx, col in enumerate(skewed_cols):
+                row = idx // 2 + 1
+                col_num = idx % 2 + 1
+                
+               
+                fig_skew.add_trace(
+                    go.Histogram(x=df[col], name=col),
+                    row=row, col=col_num
+                )
+            
+            fig_skew.update_layout(
+                title="Skewness Analysis",
+                height=300 * n_rows,
+                showlegend=False
+            )
+            plots.append((fig_skew, "Skewness Analysis"))
+    
+    if plot_type in ["all", "outliers"]:
+       
+        numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
+        outlier_cols = []
+        
+        for col in numeric_cols:
+            if outlier_method == "IQR":
+                Q1 = df[col].quantile(0.25)
+                Q3 = df[col].quantile(0.75)
+                IQR = Q3 - Q1
+                outliers = df[(df[col] < (Q1 - 1.5 * IQR)) | (df[col] > (Q3 + 1.5 * IQR))][col]
+            elif outlier_method == "Z-Score":
+                z_scores = np.abs(stats.zscore(df[col].dropna()))
+                outliers = df[col][z_scores > 3]
+            elif outlier_method == "Percentile":
+                lower = df[col].quantile(0.01)
+                upper = df[col].quantile(0.99)
+                outliers = df[(df[col] < lower) | (df[col] > upper)][col]
+            
+            if len(outliers) > 0:
+                outlier_cols.append(col)
+        
+        if outlier_cols:
+            n_cols = len(outlier_cols)
+            n_rows = (n_cols + 1) // 2  
+            
+            fig_outlier = make_subplots(
+                rows=n_rows,
+                cols=2,
+                subplot_titles=[f"{col} (Outliers: {len(df[(df[col] < df[col].quantile(0.01)) | (df[col] > df[col].quantile(0.99))][col])})" for col in outlier_cols]
+            )
+            
+            for idx, col in enumerate(outlier_cols):
+                row = idx // 2 + 1
+                col_num = idx % 2 + 1
+                
+               
+                fig_outlier.add_trace(
+                    go.Box(y=df[col], name=col),
+                    row=row, col=col_num
+                )
+            
+            fig_outlier.update_layout(
+                title=f"Outlier Analysis (Method: {outlier_method})",
+                height=300 * n_rows,
+                showlegend=False
+            )
+            plots.append((fig_outlier, "Outlier Analysis"))
+    
+    return plots
+
 with gr.Blocks() as demo:
     with gr.Row():
-        file_upload = gr.File(label="Upload CSV File", file_types=['.csv'])
-        target_column = gr.Dropdown([], label="Target Column", interactive=True)
-
-    with gr.Row():
-        problem_type=gr.Dropdown(
-            ["Regression","Classification"],
-            label='Problem Type',
-            value="Regression",interactive=True)
-        
-        model_name=gr.Dropdown(
-            ["Linear Regression","Random Forest","Decision Tree","SVR","KNN","XGBoost","CatBoost","Apply All"],
-            label="Model",
-            value="Linear Regression",
-            interactive=True
-        )
-
-    # Add metric averaging method dropdown for classification
-        metric_average = gr.Dropdown(
-            ["weighted", "macro", "micro", "binary"],
-            label="Classification Metric Averaging Method",
-            value="weighted",
-            interactive=True,
-            visible=False  # Initially hidden, shown only for classification
-        )
-
-    drop_column=gr.CheckboxGroup([],label="Columns to Drop")
-
-    with gr.Row():
-        corr_threshold=gr.Slider(
-            0,1,value=0.95,step=0.01,
-            label="Correlation Threshold (Remove Features Above)"
-        )
-        missing_threshold=gr.Slider(
-            0,1,value=0.30,step=0.05,
-            label="Missing Value Threshold (Remove Features Above)"
-        )
-        imputation=gr.Dropdown(
-            ["Mean","Median"],
-            label="Imputation",
-            value="Mean",
-            interactive=True,
-        )
-        
-    with gr.Row():
-        test_size=gr.Slider(
-            0,50,value=20,step=0.05,
-            label="Test Size"
-        )
-        sampling_method=gr.Dropdown(
-            ["None","Up Sampling","Down Sampling","SMOTE"],
-            label="Sampling Method",
-            value="None",
-            interactive=True,
-        )
-        scaling_method=gr.Dropdown(
-            ["None","Standard Scaler","MinMax Scaler"],
-            label="Scaling Method",
-            value="None",
-            interactive=True
-        )
-    with gr.Row():
-        skew_method_right=gr.Dropdown(
-            ["None","Square Root","Cube Root","Logarithms","Reciprocal"],
-            label="Right Skewness Method",
-            value="None",
-            interactive=True
-        )
-        skew_method_left=gr.Dropdown(
-            ["None","Square","Cube"],
-            label="Left Skewness Method",
-            value="None",
-            interactive=True
-        )
-    with gr.Row():
-        outlier_method=gr.Dropdown(
-            ["None","IQR","Z-Score","Percentile"],
-            label="Outlier Detection Method",
-            value="None",
-            interactive=True
-        )
-        outlier_action=gr.Dropdown(
-            ["None","Remove Rows"],
-            label="Outlier Handling Action",
-            value="None",
-            interactive=True
-        )
-
-    run_button = gr.Button("Run", variant="primary")
-    
-    
-    output_features = gr.TextArea(label="Processed Data", lines=15)
-    with gr.Row():
-        download_csv = gr.File(label="Download Prediction CSV")
-        download_log = gr.File(label="Download Processing Log")
-
-    # Add chatbot interface
-    with gr.Row():
-        with gr.Column():
-            chatbot = gr.Chatbot(label="AI Analysis", height=400)
-        with gr.Column():
-            user_query = gr.Textbox(label="Ask about your model", placeholder="Type your question here...")
-            analyze_button = gr.Button("Ask", variant="primary")
-
-    def update_model_options(problem_type):
-        if problem_type=="Regression":
-            return gr.Dropdown(choices=["Linear Regression","Random Forest","Decision Tree","SVR","KNN","XGBoost","CatBoost","Apply All"],
-            value="Linear Regression",
-            label="Model",
-            interactive=True), gr.Dropdown(visible=False)
-        else:
-            return gr.Dropdown(
-                choices=["Logistic Regression","Random Forest","Decision Tree","SVC","KNN","Naive Bayes","XGBoost","CatBoost","Apply All"],
-                value="Logistic Regression",
-                label="Model",
-                interactive=True), gr.Dropdown(visible=True)
-    problem_type.change(
-        update_model_options,
-        inputs=problem_type,
-        outputs=[model_name, metric_average]
-    )
-
-    def update_column(csv_file):
-        if csv_file is None:
-            return [gr.Dropdown(choices=[]),gr.CheckboxGroup(choices=[])]
-        df=pd.read_csv(csv_file.name)
-        columns=list(df.columns)
-        
-        # Find date columns to auto-select
-        auto_select_columns = []
-        for col in columns:
-            # Skip if column is numeric
-            if pd.api.types.is_numeric_dtype(df[col]):
-                continue
+            file_upload = gr.File(label="Upload CSV File", file_types=['.csv'])
+            target_column = gr.Dropdown([], label="Target Column", interactive=True)
+    with gr.Tabs():
+        with gr.Tab("Model Training"):
+            with gr.Row():
+                problem_type=gr.Dropdown(
+                    ["Regression","Classification"],
+                    label='Problem Type',
+                    value="Regression",interactive=True)
                 
-            # Try to detect date format
-            try:
-                # Convert to datetime and check if it's actually a date
-                date_series = pd.to_datetime(df[col], errors='coerce')
-                # Only select if at least 80% of values are valid dates
-                if date_series.notna().mean() > 0.8:
-                    auto_select_columns.append(col)
-            except:
-                continue
-        
-        return [
-            gr.Dropdown(choices=columns,value=columns[-1] if columns else None,interactive=True),
-            gr.CheckboxGroup(choices=columns, value=auto_select_columns)
-        ]
-    file_upload.change(
-        update_column,
-        inputs=[file_upload],
-        outputs=[target_column,drop_column]
-    )
+                model_name=gr.Dropdown(
+                    ["Linear Regression","Random Forest","Decision Tree","SVR","KNN","XGBoost","CatBoost","Apply All"],
+                    label="Model",
+                    value="Linear Regression",
+                    interactive=True
+                )
 
-    def run_and_analyze(csv_file, problem_type, model_name, input_column, drop_column, 
-                       corr_threshold, missing_threshold, imputation, scaling_method, test_size,
-                       sampling_method, skew_method_right, skew_method_left,
-                       outlier_method, outlier_action, metric_average):
-        # Run the model
-        report, results_file, log_file = run_model(
-            csv_file, problem_type, model_name, input_column, drop_column,
-            corr_threshold, missing_threshold, imputation, scaling_method, test_size,
-            sampling_method, skew_method_right, skew_method_left,
-            outlier_method, outlier_action, metric_average
-        )
-        
-        # Initial analysis
-        initial_analysis = analyze_log_with_ai(log_file, "Provide a summary of the preprocessing steps and model performance")
-        
-        return report, results_file, log_file, [(None, initial_analysis)]
+           
+                metric_average = gr.Dropdown(
+                    ["weighted", "macro", "micro", "binary"],
+                    label="Classification Metric Averaging Method",
+                    value="weighted",
+                    interactive=True,
+                    visible=False  
+                )
 
-    def analyze_query(log_file, user_query, chat_history):
-        if not log_file:
-            return chat_history + [(user_query, "Please run the model first to generate a log file.")]
-        
-        response = analyze_log_with_ai(log_file, user_query)
-        return chat_history + [(user_query, response)]
+            drop_column=gr.CheckboxGroup([],label="Columns to Drop")
 
-    # Update the run button click event
-    run_button.click(
-        run_and_analyze,
-        inputs=[
-            file_upload,
-            problem_type,
-            model_name,
-            target_column,
-            drop_column,
-            corr_threshold,
-            missing_threshold,
-            imputation,
-            scaling_method,
-            test_size,
-            sampling_method,
-            skew_method_right,
-            skew_method_left,
-            outlier_method,
-            outlier_action,
-            metric_average,
-        ],
-        outputs=[output_features, download_csv, download_log, chatbot]
-    )
+            with gr.Row():
+                corr_threshold=gr.Slider(
+                    0,1,value=0.95,step=0.01,
+                    label="Correlation Threshold (Remove Features Above)"
+                )
+                missing_threshold=gr.Slider(
+                    0,1,value=0.30,step=0.05,
+                    label="Missing Value Threshold (Remove Features Above)"
+                )
+                imputation=gr.Dropdown(
+                    ["Mean","Median"],
+                    label="Imputation",
+                    value="Mean",
+                    interactive=True,
+                )
+                
+            with gr.Row():
+                test_size=gr.Slider(
+                    0,50,value=20,step=0.05,
+                    label="Test Size"
+                )
+                sampling_method=gr.Dropdown(
+                    ["None","Up Sampling","Down Sampling","SMOTE"],
+                    label="Sampling Method",
+                    value="None",
+                    interactive=True,
+                )
+                scaling_method=gr.Dropdown(
+                    ["None","Standard Scaler","MinMax Scaler"],
+                    label="Scaling Method",
+                    value="Standard Scaler",
+                    interactive=True
+                )
+            with gr.Row():
+                skew_method_right=gr.Dropdown(
+                    ["None","Square Root","Cube Root","Logarithms","Reciprocal"],
+                    label="Right Skewness Method",
+                    value="Square Root",
+                    interactive=True
+                )
+                skew_method_left=gr.Dropdown(
+                    ["None","Square","Cube"],
+                    label="Left Skewness Method",
+                    value="Square",
+                    interactive=True
+                )
+            with gr.Row():
+                outlier_method=gr.Dropdown(
+                    ["None","IQR","Z-Score","Percentile"],
+                    label="Outlier Detection Method",
+                    value="IQR",
+                    interactive=True
+                )
+                outlier_action=gr.Dropdown(
+                    ["None","Remove Rows"],
+                    label="Outlier Handling Action",
+                    value="Remove Rows",
+                    interactive=True
+                )
 
-    # Add analyze button click event
-    analyze_button.click(
-        analyze_query,
-        inputs=[download_log, user_query, chatbot],
-        outputs=[chatbot]
-    )
+            run_button = gr.Button("Run", variant="primary")
+            
+            
+            output_features = gr.TextArea(label="Processed Data", lines=15)
+            with gr.Row():
+                download_csv = gr.File(label="Download Prediction CSV")
+                download_log = gr.File(label="Download Processing Log")
+
+          
+            with gr.Row():
+                with gr.Column():
+                    chatbot = gr.Chatbot(label="AI Analysis", height=400)
+                with gr.Column():
+                    user_query = gr.Textbox(label="Ask about your model", placeholder="Type your question here...")
+                    analyze_button = gr.Button("Ask", variant="primary")
+        with gr.Tab("Data Analysis"):
+                with gr.Row():
+                    with gr.Column():
+                        data_plots = gr.Plot(
+                            label="Data Analysis Plots",
+                            show_label=True,
+                            elem_id="plots"
+                        )
+                    with gr.Column():
+                        plot_type = gr.Radio(
+                            ["Missing Values", "Skewness", "Outliers"],
+                            label="Plot Type",
+                            value="Missing Values"
+                        )
+        def update_model_options(problem_type):
+                if problem_type=="Regression":
+                    return gr.Dropdown(choices=["Linear Regression","Random Forest","Decision Tree","SVR","KNN","XGBoost","CatBoost","Apply All"],
+                    value="Linear Regression",
+                    label="Model",
+                    interactive=True), gr.Dropdown(visible=False)
+                else:
+                    return gr.Dropdown(
+                        choices=["Logistic Regression","Random Forest","Decision Tree","SVC","KNN","Naive Bayes","XGBoost","CatBoost","Apply All"],
+                        value="Logistic Regression",
+                        label="Model",
+                        interactive=True), gr.Dropdown(visible=True)
+        problem_type.change(
+                update_model_options,
+                inputs=problem_type,
+                outputs=[model_name, metric_average]
+            )
+
+        def update_column(csv_file):
+                if csv_file is None:
+                    return [gr.Dropdown(choices=[]),gr.CheckboxGroup(choices=[])]
+                df=pd.read_csv(csv_file.name)
+                columns=list(df.columns)
+                
+               
+               
+                return [
+                    gr.Dropdown(choices=columns,value=columns[-1] if columns else None,interactive=True),
+                    gr.CheckboxGroup(choices=columns)
+                ]
+        file_upload.change(
+                update_column,
+                inputs=[file_upload],
+                outputs=[target_column,drop_column]
+            )
+
+        def run_and_analyze(csv_file, problem_type, model_name, input_column, drop_column, 
+                               corr_threshold, missing_threshold, imputation, scaling_method, test_size,
+                               sampling_method, skew_method_right, skew_method_left,
+                               outlier_method, outlier_action, metric_average):
+                
+                report, results_file, log_file = run_model(
+                    csv_file, problem_type, model_name, input_column, drop_column,
+                    corr_threshold, missing_threshold, imputation, scaling_method, test_size,
+                    sampling_method, skew_method_right, skew_method_left,
+                    outlier_method, outlier_action, metric_average
+                )
+                
+                
+                initial_analysis = analyze_log_with_ai(log_file, "Provide a summary of the preprocessing steps and model performance")
+                
+                return report, results_file, log_file, [(None, initial_analysis)]
+
+        def analyze_query(log_file, user_query, chat_history):
+                if not log_file:
+                    return chat_history + [(user_query, "Please run the model first to generate a log file.")]
+                
+                response = analyze_log_with_ai(log_file, user_query)
+                return chat_history + [(user_query, response)]
+
+            
+        run_button.click(
+                run_and_analyze,
+                inputs=[
+                    file_upload,
+                    problem_type,
+                    model_name,
+                    target_column,
+                    drop_column,
+                    corr_threshold,
+                    missing_threshold,
+                    imputation,
+                    scaling_method,
+                    test_size,
+                    sampling_method,
+                    skew_method_right,
+                    skew_method_left,
+                    outlier_method,
+                    outlier_action,
+                    metric_average,
+                ],
+                outputs=[output_features, download_csv, download_log, chatbot]
+            )
+
+            
+        analyze_button.click(
+                analyze_query,
+                inputs=[download_log, user_query, chatbot],
+                outputs=[chatbot]
+            )
+
+            
+           
+        df_state = gr.State(None)
+            
+        def load_data(csv_file):
+                if csv_file is None:
+                    return None, None
+                df = pd.read_csv(csv_file.name)
+                plots = create_data_visualizations(df)
+                return df, plots[0][0] if plots else None
+            
+        def update_missing_plots(df, missing_threshold):
+                if df is None:
+                    return None
+                plots = create_data_visualizations(df, missing_threshold=missing_threshold, plot_type="missing")
+                return plots[0][0] if plots else None
+            
+        def update_outlier_plots(df, outlier_method, outlier_action):
+                if df is None:
+                    return None
+                plots = create_data_visualizations(df, outlier_method=outlier_method, outlier_action=outlier_action, plot_type="outliers")
+                return plots[0][0] if plots else None
+            
+        def update_plot_type(df, plot_type, missing_threshold, outlier_method, outlier_action):
+                if df is None:
+                    return None
+                plot_type_map = {
+                    "All Plots": "all",
+                    "Missing Values": "missing",
+                    "Skewness": "skewness",
+                    "Outliers": "outliers"
+                }
+                plots = create_data_visualizations(
+                    df, 
+                    missing_threshold=missing_threshold,
+                    outlier_method=outlier_method,
+                    outlier_action=outlier_action,
+                    plot_type=plot_type_map[plot_type]
+                )
+                return plots[0][0] if plots else None
+            
+     
+        file_upload.change(
+                load_data,
+                inputs=[file_upload],
+                outputs=[df_state, data_plots]
+            )
+            
+           
+        missing_threshold.change(
+                update_missing_plots,
+                inputs=[df_state, missing_threshold],
+                outputs=[data_plots]
+            )
+            
+        outlier_method.change(
+                update_outlier_plots,
+                inputs=[df_state, outlier_method, outlier_action],
+                outputs=[data_plots]
+            )
+            
+        outlier_action.change(
+                update_outlier_plots,
+                inputs=[df_state, outlier_method, outlier_action],
+                outputs=[data_plots]
+            )
+            
+          
+        plot_type.change(
+                update_plot_type,
+                inputs=[df_state, plot_type, missing_threshold, outlier_method, outlier_action],
+                outputs=[data_plots]
+            )
 
 if __name__ == "__main__":
     demo.launch(debug=True)

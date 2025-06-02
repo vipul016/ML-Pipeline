@@ -1,0 +1,59 @@
+
+==================================================
+Step: Initial Data Loading
+==================================================
+Loading data from /private/var/folders/pz/dgpyw9mn77s0lrz1yw_wdr440000gn/T/gradio/5405ed4d5520e36054e6e0db8a3034d9f81eab81cab2c16d26b0cefa7aa9ddfd/regression_data.csv
+
+==================================================
+Step: Initial Data Info
+==================================================
+Initial columns: ['area', 'bedrooms', 'age', 'price']
+Shape: (5, 4)
+
+==================================================
+Step: Imputation
+==================================================
+Imputed columns:
+area: Mean = 1740.0
+bedrooms: Mean = 3.2
+age: Mean = 3.6
+price: Mean = 358000.0
+
+==================================================
+Step: Outlier Handling
+==================================================
+Method: IQR
+Action: Remove Rows
+Column area: 0 rows removed
+Column bedrooms: 0 rows removed
+Column age: 0 rows removed
+
+==================================================
+Step: Skewness Handling
+==================================================
+Column bedrooms: Left skew (-0.51) -> Square
+Column age: Right skew (0.60) -> Square Root
+
+==================================================
+Step: Feature Scaling
+==================================================
+Method: Standard Scaler
+Scaled columns: ['area', 'bedrooms', 'age']
+
+==================================================
+Step: Train-Test Split
+==================================================
+Test size: 20%
+Training set shape: (4, 3)
+Test set shape: (1, 3)
+
+==================================================
+Step: Model Results
+==================================================
+
+            Model: Linear Regression
+            R² Score: nan
+            Mean Absolute Error: 2251.3816
+            Mean Squared Error: 5068718.9866
+            Root Mean Squared Error: 2251.3816
+            
