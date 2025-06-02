@@ -153,7 +153,7 @@ def run_model(csv_file,
             skew_method_left,
             outlier_method,
             outlier_action,
-):
+            metric_average="weighted"):
     if csv_file is None:
         return "Please upload a CSV File", None, None
     
@@ -456,23 +456,16 @@ def run_model(csv_file,
         results_df.to_csv("results.csv",index=False)
         
         accuracy = accuracy_score(y_test, y_pred)
-        precision = precision_score(y_test, y_pred, average='weighted')
-        recall = recall_score(y_test, y_pred, average='weighted')
-        f1 = f1_score(y_test, y_pred, average='weighted')
+        precision = precision_score(y_test, y_pred, average=metric_average)
+        recall = recall_score(y_test, y_pred, average=metric_average)
+        f1 = f1_score(y_test, y_pred, average=metric_average)
         class_report = classification_report(y_test, y_pred)
         
-        if hasattr(model, 'feature_importances_'):
-            importances = dict(zip(X.columns, model.feature_importances_))
-        elif hasattr(model, 'coef_'):
-            if len(model.coef_.shape) == 1:
-                importances = dict(zip(X.columns, model.coef_[0]))
-            else:
-                importances = "Multiple coefficients (check model details)"
-        else:
-            importances = "Feature importances not available for this model"
+        
         
         log_step(log_file, "Model Results", f"""
             Model: {model_name}
+            Metric Averaging Method: {metric_average}
             Accuracy: {accuracy:.4f}
             Precision: {precision:.4f}
             Recall: {recall:.4f}
@@ -485,7 +478,7 @@ def run_model(csv_file,
         report = f"""
             Model: {model_name} ({problem_type})
             Target: {input_column}
-            
+            Metric Averaging Method: {metric_average}
             
             Model Metrics:
             - Accuracy: {accuracy:.4f}
@@ -548,8 +541,16 @@ with gr.Blocks() as demo:
             value="Linear Regression",
             interactive=True
         )
-        
-   
+
+    # Add metric averaging method dropdown for classification
+        metric_average = gr.Dropdown(
+            ["weighted", "macro", "micro", "binary"],
+            label="Classification Metric Averaging Method",
+            value="weighted",
+            interactive=True,
+            visible=False  # Initially hidden, shown only for classification
+        )
+
     drop_column=gr.CheckboxGroup([],label="Columns to Drop")
 
     with gr.Row():
@@ -633,17 +634,17 @@ with gr.Blocks() as demo:
             return gr.Dropdown(choices=["Linear Regression","Random Forest","Decision Tree","SVR","KNN","XGBoost","CatBoost","Apply All"],
             value="Linear Regression",
             label="Model",
-            interactive=True)
+            interactive=True), gr.Dropdown(visible=False)
         else:
-            return  gr.Dropdown(
+            return gr.Dropdown(
                 choices=["Logistic Regression","Random Forest","Decision Tree","SVC","KNN","Naive Bayes","XGBoost","CatBoost","Apply All"],
                 value="Logistic Regression",
                 label="Model",
-                interactive=True)
+                interactive=True), gr.Dropdown(visible=True)
     problem_type.change(
         update_model_options,
         inputs=problem_type,
-        outputs=model_name
+        outputs=[model_name, metric_average]
     )
 
     def update_column(csv_file):
@@ -651,9 +652,27 @@ with gr.Blocks() as demo:
             return [gr.Dropdown(choices=[]),gr.CheckboxGroup(choices=[])]
         df=pd.read_csv(csv_file.name)
         columns=list(df.columns)
+        
+        # Find date columns to auto-select
+        auto_select_columns = []
+        for col in columns:
+            # Skip if column is numeric
+            if pd.api.types.is_numeric_dtype(df[col]):
+                continue
+                
+            # Try to detect date format
+            try:
+                # Convert to datetime and check if it's actually a date
+                date_series = pd.to_datetime(df[col], errors='coerce')
+                # Only select if at least 80% of values are valid dates
+                if date_series.notna().mean() > 0.8:
+                    auto_select_columns.append(col)
+            except:
+                continue
+        
         return [
             gr.Dropdown(choices=columns,value=columns[-1] if columns else None,interactive=True),
-            gr.CheckboxGroup(choices=columns)
+            gr.CheckboxGroup(choices=columns, value=auto_select_columns)
         ]
     file_upload.change(
         update_column,
@@ -664,13 +683,13 @@ with gr.Blocks() as demo:
     def run_and_analyze(csv_file, problem_type, model_name, input_column, drop_column, 
                        corr_threshold, missing_threshold, imputation, scaling_method, test_size,
                        sampling_method, skew_method_right, skew_method_left,
-                       outlier_method, outlier_action):
+                       outlier_method, outlier_action, metric_average):
         # Run the model
         report, results_file, log_file = run_model(
             csv_file, problem_type, model_name, input_column, drop_column,
             corr_threshold, missing_threshold, imputation, scaling_method, test_size,
             sampling_method, skew_method_right, skew_method_left,
-            outlier_method, outlier_action
+            outlier_method, outlier_action, metric_average
         )
         
         # Initial analysis
@@ -704,6 +723,7 @@ with gr.Blocks() as demo:
             skew_method_left,
             outlier_method,
             outlier_action,
+            metric_average,
         ],
         outputs=[output_features, download_csv, download_log, chatbot]
     )
