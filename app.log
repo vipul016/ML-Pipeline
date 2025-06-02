@@ -1,0 +1,7 @@
+2025-06-02 12:33:04,445 - INFO - HTTP Request: GET http://127.0.0.1:7860/gradio_api/startup-events "HTTP/1.1 200 OK"
+2025-06-02 12:33:04,482 - INFO - HTTP Request: HEAD http://127.0.0.1:7860/ "HTTP/1.1 200 OK"
+2025-06-02 12:33:05,567 - INFO - HTTP Request: GET https://api.gradio.app/pkg-version "HTTP/1.1 200 OK"
+2025-06-02 12:35:41,198 - ERROR - Error preparing features and target: 'settlement_term'
+2025-06-02 12:35:50,680 - ERROR - Error preparing features and target: 'settlement_date'
+2025-06-02 12:36:01,879 - ERROR - Error preparing features and target: 'title'
+2025-06-02 12:36:12,886 - ERROR - Error in model training and evaluation: Unknown label type: continuous. Maybe you are trying to fit a classifier, which expects discrete classes on a regression target with continuous values.
