@@ -356,7 +356,7 @@ def run_model(csv_file,
             logging.warning(f"Error in skewness handling: {str(e)}")
 
         try:
-            if input_column in df.columns and pd.api.types.is_object_dtype(df[input_column]):
+            if input_column in df.columns and pd.api.types.is_object_dtype(df[input_column]) or problem_type == "Classification":
                 le = LabelEncoder()
                 df[input_column] = le.fit_transform(df[input_column])
                 log_step(log_file, "Target Encoding", f"Encoded target column: {input_column}")
@@ -395,7 +395,7 @@ def run_model(csv_file,
                     if col not in X.columns:
                         continue
                     unique_count = X[col].nunique()
-                    if unique_count <= 10:
+                    if unique_count <= 20:
                         columns_to_encode.append(col)
                     else:
                         dropped_columns_info.append((col, unique_count))
